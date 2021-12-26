@@ -7,11 +7,11 @@ import express from 'express';
 import bodyParser from "body-parser";
 import expressPinoLogger from "express-pino-logger";
 import { logger } from './utils/logger.js';
-import { apiBaseUrl, isHttps, httpPort, httpsPort, mailFrom, mailTo, mailSubject } from './config.js';
+import { apiBaseUrl, mailFrom, mailTo, mailSubject } from './config.js';
 import date from 'date-and-time';
 import {sendMail} from './utils/mail.js';
 import dotenv from 'dotenv';
-
+import sleep from 'sleep-promise';
 dotenv.config();
 
 const app = express();
@@ -20,6 +20,10 @@ app.use(expressPinoLogger({ logger: logger }));
 setCors(app);
 
 let credentials = null;
+let isHttps = process.env.isHttps * 1 === 1;
+const httpsPort = process.env.httpsPort * 1;
+const httpPort = process.env.httpPort * 1;
+
 if(isHttps) {
   const privateKey  = fs.readFileSync('sslcert/server.key', 'utf8');
   const certificate = fs.readFileSync('sslcert/server.pem', 'utf8');
@@ -58,17 +62,47 @@ function setCors(app) {
 setInterval(async () => {
 	console.log('setInterval start');
 	const res = await checkConnection(process.env.IPS, process.env.PORTS);
-	const message = [];
+	let message = [];
 	if(res.success) {
 		for(let i = 0; i < res.data.length; i++) {
 			const d = res.data[i];
 			if(!d.inUse) message.push(d);
 		}
 		if(message.length > 0) {
-      await sendMail(mailFrom, mailTo, mailSubject, JSON.stringify(message));
+      console.log("有疑似节点问题", JSON.stringify(message));
+      console.log('等待2秒, 再次确认');
+      await sleep(2 * 1000);
+      await doubleCheck(message);
+      // await sendMail(mailFrom, mailTo, mailSubject, JSON.stringify(message));
     } else console.log(getDate() + " All ports are available");
 	}
-}, 600000);
+}, 60000 * process.env.Interval);
+
+const doubleCheck = async (data) => {
+  let ips = [];
+  let ports = [];
+  console.log('开始再次确认');
+  for(let i = 0; i < data.length; i++) {
+    if(!ips.includes(data[i].ip)) ips.push(data[i].ip); 
+    if(!ports.includes(data[i].port)) ports.push(data[i].port);
+  }
+  ips = ips.join(',');
+  ports = ports.join(',');
+  const res = await checkConnection(ips, ports);
+  let message = [];
+  if(res.success) {
+    for(let i = 0; i < res.data.length; i++) {
+      const d = res.data[i];
+      if(!d.inUse) message.push(d);
+    }
+    if(message.length > 0) {
+      console.log('再次确认后, 确认节点问题', JSON.stringify(message));
+      await sendMail(mailFrom, mailTo, mailSubject, "Node error " + JSON.stringify(message));
+    } else {
+      console.log('再次确认, 排除疑似故障');
+    }
+  }
+}
 
 const getDate = () => {
 	return date.format(new Date(), 'YYYY/MM/DD HH:mm:ss');
