@@ -7,7 +7,7 @@ import express from 'express';
 import bodyParser from "body-parser";
 import expressPinoLogger from "express-pino-logger";
 import { logger } from './utils/logger.js';
-import { apiBaseUrl, mailFrom, mailTo, mailSubject } from './config.js';
+import { apiBaseUrl, mailFrom, mailSubject } from './config.js';
 import date from 'date-and-time';
 import {sendMail} from './utils/mail.js';
 import dotenv from 'dotenv';
@@ -72,7 +72,7 @@ setInterval(async () => {
 		}
 		if(message.length > 0) {
       console.log("有疑似节点问题", JSON.stringify(message));
-      console.log('等待2秒, 再次确认');
+      console.log(`等待${doubleCheckInterval}秒, 再次确认`);
       await sleep(doubleCheckInterval * 1000);
       await doubleCheck(message);
     } else console.log(getDate() + " All ports are available");
@@ -109,7 +109,7 @@ const getDate = () => {
 	return date.format(new Date(), 'YYYY/MM/DD HH:mm:ss');
 }
 
-sendMail(mailFrom, mailTo, mailSubject, getDate() + ' XX网络节点监控已经启动，每十分钟检测一次，如发现故障，会收到邮件通知！');
+// sendMail(mailFrom, mailTo, mailSubject, getDate() + ' XX网络节点监控已经启动，每十分钟检测一次，如发现故障，会收到邮件通知！');
 
 app.post(apiBaseUrl + '/checkport', async function (req, res) {
   const ips = req.body.ips;
