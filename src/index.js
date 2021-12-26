@@ -23,6 +23,8 @@ let credentials = null;
 let isHttps = process.env.isHttps * 1 === 1;
 const httpsPort = process.env.httpsPort * 1;
 const httpPort = process.env.httpPort * 1;
+const doubleCheckInterval = process.env.DoubleCheckInterval;
+const mailTo = process.env.mailTo;
 
 if(isHttps) {
   const privateKey  = fs.readFileSync('sslcert/server.key', 'utf8');
@@ -71,9 +73,8 @@ setInterval(async () => {
 		if(message.length > 0) {
       console.log("有疑似节点问题", JSON.stringify(message));
       console.log('等待2秒, 再次确认');
-      await sleep(2 * 1000);
+      await sleep(doubleCheckInterval * 1000);
       await doubleCheck(message);
-      // await sendMail(mailFrom, mailTo, mailSubject, JSON.stringify(message));
     } else console.log(getDate() + " All ports are available");
 	}
 }, 60000 * process.env.Interval);
